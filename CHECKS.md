@@ -11,7 +11,7 @@ Every check must ship with three outputs, not one:
 | # | Check | Status | Module | CIS | SOC 2 |
 |---|-------|--------|--------|-----|-------|
 | 1 | S3 public access (ACL, policy, public access block) | done* | `checks/s3_public.py` | 2.1.x | CC6.1, CC6.6 |
-| 2 | Security group open to 0.0.0.0/0 (SSH/RDP/DB ports) | planned | `checks/sg_open.py` | 5.2–5.3 | CC6.6 |
+| 2 | Security group open to 0.0.0.0/0 (SSH/RDP/DB ports) | done | `checks/sg_open.py` | 5.2–5.3 | CC6.6 |
 | 3 | Root account MFA disabled | planned | `checks/root_mfa.py` | 1.5–1.6 | CC6.1 |
 | 4 | IAM policy allows `*:*` admin access | planned | `checks/iam_admin.py` | 1.16 | CC6.1, CC6.3 |
 | 5 | CloudTrail disabled or not multi-region | planned | `checks/cloudtrail.py` | 3.1 | CC7.2 (monitoring) |
