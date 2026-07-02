@@ -47,8 +47,8 @@ body {
     linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
   background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, black 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, black 30%, transparent 75%);
+  mask-image: linear-gradient(to bottom, black 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.18) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.18) 100%);
 }
 .orb { position: fixed; border-radius: 50%; filter: blur(120px); z-index: -3; pointer-events: none; }
 .orb-1 { width: 560px; height: 560px; background: rgba(245,165,36,0.10); top: -180px; left: 50%; transform: translateX(-50%); }
@@ -117,6 +117,10 @@ nav {
 .cube-5 { --s: 60px;  width: 60px;  height: 60px;  top: 76%;  right: 4%;  left: auto; animation-delay: -12s, -5s; }
 @keyframes drift { from { margin-top: -26px; } to { margin-top: 26px; } }
 @keyframes spin { from { transform: rotateX(-18deg) rotateY(0deg); } to { transform: rotateX(-18deg) rotateY(360deg); } }
+
+/* fainter, slower ambient cubes for the rest of the page */
+.cubes-ambient .cube { opacity: .38; animation-duration: 22s, 52s; }
+.cubes-ambient .face { border-color: rgba(245,165,36,0.14); box-shadow: inset 0 0 16px rgba(245,165,36,0.03); }
 
 /* ---------- protective dome over the terminal ---------- */
 .dome { position: absolute; left: 50%; transform: translateX(-50%); width: min(1040px, 106vw); z-index: 0; pointer-events: none; }
@@ -411,6 +415,10 @@ footer a:hover { color: var(--text); }
 </header>
 
 <section class="container">
+  <div class="cubes cubes-ambient" aria-hidden="true">
+    <div class="cube" style="--s:56px;width:56px;height:56px;top:4%;right:1%;animation-delay:-7s,-20s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+    <div class="cube" style="--s:34px;width:34px;height:34px;top:64%;left:0%;animation-delay:-13s,-38s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+  </div>
   <div class="center reveal">
     <div class="eyebrow">The problem</div>
     <h2>The audit is coming. Your scanner speaks robot.</h2>
@@ -436,6 +444,10 @@ footer a:hover { color: var(--text); }
 </section>
 
 <section class="container" id="example">
+  <div class="cubes cubes-ambient" aria-hidden="true">
+    <div class="cube" style="--s:44px;width:44px;height:44px;top:10%;left:1%;animation-delay:-3s,-11s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+    <div class="cube" style="--s:68px;width:68px;height:68px;top:70%;right:0%;animation-delay:-17s,-29s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+  </div>
   <div class="center reveal">
     <div class="eyebrow">Three outputs, every finding</div>
     <h2>This is a real finding. Redacted, not staged.</h2>
@@ -473,6 +485,10 @@ address on the internet</div>
 </section>
 
 <section class="container" id="how">
+  <div class="cubes cubes-ambient" aria-hidden="true">
+    <div class="cube" style="--s:50px;width:50px;height:50px;top:2%;right:3%;animation-delay:-9s,-44s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+    <div class="cube" style="--s:30px;width:30px;height:30px;top:78%;left:2%;animation-delay:-1s,-16s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+  </div>
   <div class="center reveal">
     <div class="eyebrow">How it works</div>
     <h2>Fifteen minutes to your first evidence file.</h2>
@@ -501,6 +517,10 @@ address on the internet</div>
 </section>
 
 <section class="container" id="checks">
+  <div class="cubes cubes-ambient" aria-hidden="true">
+    <div class="cube" style="--s:62px;width:62px;height:62px;top:14%;left:0%;animation-delay:-21s,-33s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+    <div class="cube" style="--s:38px;width:38px;height:38px;top:60%;right:1%;animation-delay:-5s,-49s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+  </div>
   <div class="center reveal">
     <div class="eyebrow">Coverage</div>
     <h2>The checks that decide your audit.</h2>
@@ -521,6 +541,10 @@ address on the internet</div>
 </section>
 
 <section class="container" id="pricing">
+  <div class="cubes cubes-ambient" aria-hidden="true">
+    <div class="cube" style="--s:48px;width:48px;height:48px;top:18%;right:6%;animation-delay:-11s,-26s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+    <div class="cube" style="--s:72px;width:72px;height:72px;top:56%;left:3%;animation-delay:-15s,-7s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+  </div>
   <div class="center reveal">
     <div class="eyebrow">Pricing</div>
     <h2>Less than an hour of your consultant's time.</h2>
@@ -544,6 +568,10 @@ address on the internet</div>
 </section>
 
 <section class="container center" id="early-access" style="padding-bottom: 110px;">
+  <div class="cubes cubes-ambient" aria-hidden="true">
+    <div class="cube" style="--s:40px;width:40px;height:40px;top:8%;left:8%;animation-delay:-19s,-41s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+    <div class="cube" style="--s:54px;width:54px;height:54px;top:40%;right:7%;animation-delay:-2s,-14s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
+  </div>
   <div class="reveal">
     <div class="eyebrow">Early access</div>
     <h2>Be in the first ten accounts.</h2>
