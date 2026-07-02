@@ -17,11 +17,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from checks import (  # noqa: E402
+    agent_keys,
+    ai_agent_roles,
     cloudtrail,
     ebs_encryption,
     iam_admin,
     imdsv1,
     lambda_iam,
+    lambda_secrets,
     rds_public,
     root_mfa,
     s3_public,
@@ -366,5 +369,117 @@ def test_lambda_passes_plain_role():
     _make_lambda_with_role()
 
     findings = lambda_iam.run_check(region="us-east-1")
+
+    assert all(f.status == "pass" for f in findings)
+
+
+# --- UC-020 AI/agent roles ---------------------------------------------------------
+
+
+BEDROCK_TRUST = (
+    '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": '
+    '{"Service": "bedrock.amazonaws.com"}, "Action": "sts:AssumeRole"}]}'
+)
+STAR_STAR = (
+    '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", '
+    '"Action": "*", "Resource": "*"}]}'
+)
+
+
+@mock_aws
+def test_ai_role_flags_bedrock_role_with_admin():
+    iam = boto3.client("iam", region_name="us-east-1")
+    iam.create_role(RoleName="support-agent-role", AssumeRolePolicyDocument=BEDROCK_TRUST)
+    arn = iam.create_policy(PolicyName="agent-admin", PolicyDocument=STAR_STAR)["Policy"]["Arn"]
+    iam.attach_role_policy(RoleName="support-agent-role", PolicyArn=arn)
+
+    findings = ai_agent_roles.run_check(region="us-east-1")
+    fails = [f for f in findings if f.status == "fail"]
+
+    assert len(fails) == 1
+    assert "support-agent-role" in fails[0].resource
+    assert fails[0].severity == "critical"
+    assert "bedrock.amazonaws.com" in fails[0].detection
+
+
+@mock_aws
+def test_ai_role_passes_scoped_bedrock_role():
+    iam = boto3.client("iam", region_name="us-east-1")
+    iam.create_role(RoleName="chatbot-role", AssumeRolePolicyDocument=BEDROCK_TRUST)
+
+    findings = ai_agent_roles.run_check(region="us-east-1")
+
+    assert all(f.status == "pass" for f in findings)
+    assert "1 identified" in findings[0].resource
+
+
+# --- UC-021 Machine identities on static keys ---------------------------------------
+
+
+@mock_aws
+def test_agent_keys_flags_bot_user_with_active_key():
+    iam = boto3.client("iam", region_name="us-east-1")
+    iam.create_user(UserName="n8n-automation-bot")
+    iam.create_access_key(UserName="n8n-automation-bot")
+
+    findings = agent_keys.run_check(region="us-east-1")
+    fails = [f for f in findings if f.status == "fail"]
+
+    assert len(fails) == 1
+    assert "n8n-automation-bot" in fails[0].resource
+    assert "update-access-key" in fails[0].fix_cli
+
+
+@mock_aws
+def test_agent_keys_ignores_human_user():
+    iam = boto3.client("iam", region_name="us-east-1")
+    iam.create_user(UserName="jaylun")
+    iam.create_access_key(UserName="jaylun")
+
+    findings = agent_keys.run_check(region="us-east-1")
+
+    assert all(f.status == "pass" for f in findings)
+
+
+# --- UC-022 Secrets in Lambda env vars ----------------------------------------------
+
+
+def _make_lambda_with_env(env_vars):
+    iam = boto3.client("iam", region_name="us-east-1")
+    role = iam.create_role(
+        RoleName="env-fn-role",
+        AssumeRolePolicyDocument='{"Version": "2012-10-17", "Statement": [{"Effect": '
+        '"Allow", "Principal": {"Service": "lambda.amazonaws.com"}, '
+        '"Action": "sts:AssumeRole"}]}',
+    )["Role"]
+    lam = boto3.client("lambda", region_name="us-east-1")
+    lam.create_function(
+        FunctionName="env-fn",
+        Runtime="python3.12",
+        Role=role["Arn"],
+        Handler="index.handler",
+        Code={"ZipFile": b"fake code"},
+        Environment={"Variables": env_vars},
+    )
+
+
+@mock_aws
+def test_lambda_secrets_flags_api_key_env_var():
+    _make_lambda_with_env({"OPENAI_API_KEY": "sk-abc123", "LOG_LEVEL": "info"})
+
+    findings = lambda_secrets.run_check(region="us-east-1")
+    fails = [f for f in findings if f.status == "fail"]
+
+    assert len(fails) == 1
+    assert "OPENAI_API_KEY" in fails[0].detection
+    assert "sk-abc123" not in fails[0].detection  # never leak the value
+    assert "secretsmanager" in fails[0].fix_cli
+
+
+@mock_aws
+def test_lambda_secrets_passes_clean_env():
+    _make_lambda_with_env({"LOG_LEVEL": "info", "STAGE": "prod"})
+
+    findings = lambda_secrets.run_check(region="us-east-1")
 
     assert all(f.status == "pass" for f in findings)

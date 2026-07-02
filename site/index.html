@@ -533,11 +533,17 @@ address on the internet</div>
     <div class="check-row"><span class="cid">UC-004</span><span class="cname">IAM policies granting full admin (*:*)</span><span class="csoc">CC6.1 · CC6.3</span><span class="pill live">LIVE</span></div>
     <div class="check-row"><span class="cid">UC-005</span><span class="cname">CloudTrail disabled or not multi-region</span><span class="csoc">CC7.2</span><span class="pill live">LIVE</span></div>
     <div class="check-row"><span class="cid">UC-006</span><span class="cname">Access keys older than 90 days</span><span class="csoc">CC6.1</span><span class="pill live">LIVE</span></div>
-    <div class="check-row"><span class="cid">UC-007</span><span class="cname">Unencrypted EBS volumes</span><span class="csoc">CC6.7</span><span class="pill soon">SOON</span></div>
-    <div class="check-row"><span class="cid">UC-008</span><span class="cname">Publicly shared RDS snapshots</span><span class="csoc">CC6.1 · CC6.6</span><span class="pill soon">SOON</span></div>
-    <div class="check-row"><span class="cid">UC-009</span><span class="cname">EC2 instances allowing IMDSv1</span><span class="csoc">CC6.6</span><span class="pill soon">SOON</span></div>
-    <div class="check-row"><span class="cid">UC-010</span><span class="cname">Over-privileged Lambda execution roles</span><span class="csoc">CC6.3</span><span class="pill soon">SOON</span></div>
+    <div class="check-row"><span class="cid">UC-007</span><span class="cname">Unencrypted EBS volumes</span><span class="csoc">CC6.7</span><span class="pill live">LIVE</span></div>
+    <div class="check-row"><span class="cid">UC-008</span><span class="cname">Publicly shared RDS snapshots</span><span class="csoc">CC6.1 · CC6.6</span><span class="pill live">LIVE</span></div>
+    <div class="check-row"><span class="cid">UC-009</span><span class="cname">EC2 instances allowing IMDSv1</span><span class="csoc">CC6.6</span><span class="pill live">LIVE</span></div>
+    <div class="check-row"><span class="cid">UC-010</span><span class="cname">Over-privileged Lambda execution roles</span><span class="csoc">CC6.3</span><span class="pill live">LIVE</span></div>
+    <div class="check-row"><span class="cid">UC-020</span><span class="cname">AI agents &amp; Bedrock roles with god-mode credentials</span><span class="csoc">CC6.3</span><span class="pill live">LIVE</span></div>
+    <div class="check-row"><span class="cid">UC-021</span><span class="cname">Bots &amp; automations running on never-expiring keys</span><span class="csoc">CC6.1</span><span class="pill live">LIVE</span></div>
+    <div class="check-row"><span class="cid">UC-022</span><span class="cname">OpenAI/Anthropic API keys sitting in plaintext config</span><span class="csoc">CC6.1</span><span class="pill live">LIVE</span></div>
   </div>
+  <p class="reveal" style="text-align:center; margin-top:22px; color:var(--text-dim); font-size:14.5px;">
+    Deploying AI agents? We're the only scanner that audits your agents' <span style="color:var(--amber)">blast radius</span> — what your AI can actually do in AWS if a prompt injection lands.
+  </p>
 </section>
 
 <section class="container" id="pricing">

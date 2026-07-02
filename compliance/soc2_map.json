@@ -76,5 +76,26 @@
     "cis": [],
     "soc2": ["CC6.3"],
     "control_statement": "Workload execution roles follow least privilege."
+  },
+  "UC-020": {
+    "name": "AI/agent role with full admin",
+    "implemented": true,
+    "cis": [],
+    "soc2": ["CC6.3"],
+    "control_statement": "AI and autonomous-agent workload identities follow least privilege."
+  },
+  "UC-021": {
+    "name": "Machine identity on long-lived access keys",
+    "implemented": true,
+    "cis": [],
+    "soc2": ["CC6.1"],
+    "control_statement": "Machine and automation identities use short-lived, role-based credentials rather than static keys."
+  },
+  "UC-022": {
+    "name": "Secrets in Lambda environment variables",
+    "implemented": true,
+    "cis": [],
+    "soc2": ["CC6.1"],
+    "control_statement": "Application secrets are stored in a managed secrets service, not in plaintext configuration."
   }
 }

@@ -45,7 +45,8 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:17px; }
 .logo-mark { width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,#f5a524,#b45309); box-shadow:0 0 16px rgba(245,165,36,0.3); }
 .meta { font-family:var(--mono); font-size:12px; color:var(--faint); }
-.cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:36px; }
+.cards { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:36px; }
+@media (max-width:800px) { .cards { grid-template-columns:repeat(2,1fr); } }
 .stat { background:var(--glass); border:1px solid var(--border-soft); border-radius:14px; padding:20px 22px; }
 .stat .n { font-size:34px; font-weight:800; letter-spacing:-0.03em; }
 .stat .l { font-size:12.5px; color:var(--dim); margin-top:2px; }
@@ -84,7 +85,9 @@ pre { font-family:var(--mono); font-size:12px; background:rgba(0,0,0,0.35); bord
 {% if not scan %}
   <div class="empty">No scans yet. Run <code>python checks/run_all.py --profile security-auditor</code> first.</div>
 {% else %}
+  {% set score = scan.get('score', (scan.summary.pass / scan.summary.total * 100)|round|int if scan.summary.total else 100) %}
   <div class="cards">
+    <div class="stat {{ 'good' if score >= 90 else ('brand' if score >= 70 else 'bad') }}"><div class="n">{{ score }}</div><div class="l">posture score / 100</div></div>
     <div class="stat brand"><div class="n">{{ scan.summary.total }}</div><div class="l">control observations</div></div>
     <div class="stat good"><div class="n">{{ scan.summary.pass }}</div><div class="l">effective (passing)</div></div>
     <div class="stat {{ 'bad' if scan.summary.fail else 'good' }}"><div class="n">{{ scan.summary.fail }}</div><div class="l">exceptions (failing)</div></div>

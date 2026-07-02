@@ -23,7 +23,20 @@ All checks emit the shared `Finding` model in `checks/models.py` (check_id, reso
 | 9 | UC-009 | EC2 IMDSv1 enabled | done | `checks/imdsv1.py` | 5.6 | CC6.6 |
 | 10 | UC-010 | Lambda over-privileged execution role | done | `checks/lambda_iam.py` | — | CC6.3 (least privilege) |
 
-Run everything: `python checks/run_all.py --profile <profile>` (writes `scans/<timestamp>.json`).
+## AI-agent security pack (UC-020+)
+
+The innovation spear: audit the cloud blast radius of AI agents — a new class of identity that is provisioned fast, over-privileged by default, and covered by nobody's checklist. Same Finding model, same evidence pipeline.
+
+| # | ID | Check | Status | Module | SOC 2 |
+|---|----|-------|--------|--------|-------|
+| 20 | UC-020 | AI/agent execution role with full admin (Bedrock/SageMaker trust or agent-named) | done | `checks/ai_agent_roles.py` | CC6.3 |
+| 21 | UC-021 | Machine/agent identity on long-lived access keys | done | `checks/agent_keys.py` | CC6.1 |
+| 22 | UC-022 | Secrets in Lambda environment variables (names/shapes only, values never read) | done | `checks/lambda_secrets.py` | CC6.1 |
+| 23 | UC-023 | Agent role that can edit its own IAM policies (self-escalation) | planned | `checks/agent_self_escalation.py` | CC6.3 |
+| 24 | UC-024 | Bedrock model invocation logging disabled | planned | `checks/bedrock_logging.py` | CC7.2 |
+| 25 | UC-025 | SageMaker/Bedrock endpoints publicly accessible | planned | `checks/ai_endpoints.py` | CC6.6 |
+
+Run everything: `python checks/run_all.py --profile <profile>` (writes `scans/<timestamp>.json`). Add `--all-regions` to fan regional checks across every enabled region.
 Export evidence: `python export_evidence.py` (reads latest scan, writes CSV + Markdown to `evidence/`).
 Tests (no AWS needed): `pytest` (moto-mocked, see `tests/test_checks.py`).
 
