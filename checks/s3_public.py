@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
-"""Check S3 buckets for public access misconfigurations."""
+"""Check #1: S3 buckets with public access misconfigurations.
+
+CIS AWS Foundations 2.1.x · SOC 2 CC6.1 / CC6.6.
+Emits the three-output standard: detection + plain-English risk + fix.
+"""
 
 from __future__ import annotations
 
 import json
 import sys
-from dataclasses import asdict, dataclass
 from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 
+try:
+    from checks.models import Finding, print_findings
+except ImportError:  # running as a script from the checks/ directory
+    from models import Finding, print_findings
 
-@dataclass
-class BucketFinding:
-    bucket: str
-    region: str
-    public: bool
-    issues: list[str]
+CHECK_ID = "UC-001"
 
 
 def _bucket_region(s3_client: Any, bucket_name: str) -> str:
@@ -95,7 +97,28 @@ def _check_bucket_policy(s3_client: Any, bucket_name: str) -> list[str]:
     return issues
 
 
-def check_bucket(session: boto3.Session, s3_client: Any, bucket_name: str) -> BucketFinding:
+def _fix_terraform(bucket_name: str) -> str:
+    return (
+        f'resource "aws_s3_bucket_public_access_block" "locked" {{\n'
+        f'  bucket                  = "{bucket_name}"\n'
+        f"  block_public_acls       = true\n"
+        f"  block_public_policy     = true\n"
+        f"  ignore_public_acls      = true\n"
+        f"  restrict_public_buckets = true\n"
+        f"}}"
+    )
+
+
+def _fix_cli(bucket_name: str) -> str:
+    return (
+        f"aws s3api put-public-access-block --bucket {bucket_name} "
+        f"--public-access-block-configuration "
+        f"BlockPublicAcls=true,IgnorePublicAcls=true,"
+        f"BlockPublicPolicy=true,RestrictPublicBuckets=true"
+    )
+
+
+def check_bucket(session: boto3.Session, s3_client: Any, bucket_name: str) -> Finding:
     region = _bucket_region(s3_client, bucket_name)
     regional_client = (
         session.client("s3", region_name=region)
@@ -108,15 +131,30 @@ def check_bucket(session: boto3.Session, s3_client: Any, bucket_name: str) -> Bu
     issues.extend(_check_bucket_acl(regional_client, bucket_name))
     issues.extend(_check_bucket_policy(regional_client, bucket_name))
 
-    return BucketFinding(
-        bucket=bucket_name,
+    failed = len(issues) > 0
+    return Finding(
+        check_id=CHECK_ID,
+        check_name="S3 public access",
+        resource=f"s3://{bucket_name}",
         region=region,
-        public=len(issues) > 0,
-        issues=issues,
+        severity="critical",
+        status="fail" if failed else "pass",
+        detection="; ".join(issues) if failed else "No public access indicators found",
+        plain_english_risk=(
+            "Anyone on the internet may be able to list or download the files in this "
+            "bucket — customer data, backups, logs. Public buckets are found by scanners "
+            "within hours and are the most common cause of startup data leaks."
+            if failed
+            else ""
+        ),
+        fix_terraform=_fix_terraform(bucket_name) if failed else "",
+        fix_cli=_fix_cli(bucket_name) if failed else "",
+        cis_refs=["2.1.1", "2.1.4"],
+        soc2_refs=["CC6.1", "CC6.6"],
     )
 
 
-def run_check(profile: str | None = None, region: str | None = None) -> list[BucketFinding]:
+def run_check(profile: str | None = None, region: str | None = None) -> list[Finding]:
     session_kwargs: dict[str, Any] = {}
     if profile:
         session_kwargs["profile_name"] = profile
@@ -126,10 +164,9 @@ def run_check(profile: str | None = None, region: str | None = None) -> list[Buc
     session = boto3.Session(**session_kwargs)
     s3_client = session.client("s3")
 
-    findings: list[BucketFinding] = []
+    findings: list[Finding] = []
     for bucket in s3_client.list_buckets().get("Buckets", []):
-        bucket_name = bucket["Name"]
-        findings.append(check_bucket(session, s3_client, bucket_name))
+        findings.append(check_bucket(session, s3_client, bucket["Name"]))
     return findings
 
 
@@ -155,26 +192,18 @@ def main() -> int:
         print(f"ERROR: AWS API call failed: {error}", file=sys.stderr)
         return 1
 
-    public_buckets = [finding for finding in findings if finding.public]
+    failed = [f for f in findings if f.status == "fail"]
 
     if args.json:
-        print(json.dumps([asdict(finding) for finding in findings], indent=2))
+        print(json.dumps([f.to_dict() for f in findings], indent=2))
     else:
         print(f"Scanned {len(findings)} bucket(s)\n")
         if not findings:
             print("No buckets found in this account.")
-        for finding in findings:
-            status = "PUBLIC RISK" if finding.public else "OK"
-            print(f"[{status}] s3://{finding.bucket} ({finding.region})")
-            for issue in finding.issues:
-                print(f"  - {issue}")
-            if not finding.issues:
-                print("  - No public access indicators found")
-            print()
+        print_findings(findings)
+        print(f"Summary: {len(failed)} bucket(s) with public access risk")
 
-        print(f"Summary: {len(public_buckets)} bucket(s) with public access risk")
-
-    return 1 if public_buckets else 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

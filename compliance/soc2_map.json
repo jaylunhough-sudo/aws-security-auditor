@@ -1,0 +1,80 @@
+{
+  "_comment": "Check ID -> compliance mapping. Verify TSC wording against the current AICPA Trust Services Criteria before shipping customer-facing evidence language.",
+  "UC-001": {
+    "name": "S3 public access",
+    "implemented": true,
+    "cis": ["2.1.1", "2.1.4"],
+    "soc2": ["CC6.1", "CC6.6"],
+    "control_statement": "Logical access to data storage is restricted; system boundaries prevent public exposure of stored data."
+  },
+  "UC-002": {
+    "name": "Security group open to internet",
+    "implemented": true,
+    "cis": ["5.2", "5.3"],
+    "soc2": ["CC6.6"],
+    "control_statement": "Network boundaries restrict inbound access to administrative and database services from untrusted networks."
+  },
+  "UC-003": {
+    "name": "Root account MFA",
+    "implemented": true,
+    "cis": ["1.5"],
+    "soc2": ["CC6.1"],
+    "control_statement": "Privileged account access requires multi-factor authentication."
+  },
+  "UC-003b": {
+    "name": "Root access keys",
+    "implemented": true,
+    "cis": ["1.4"],
+    "soc2": ["CC6.1"],
+    "control_statement": "Long-lived credentials for the privileged root account do not exist."
+  },
+  "UC-004": {
+    "name": "IAM policy allows *:* admin access",
+    "implemented": false,
+    "cis": ["1.16"],
+    "soc2": ["CC6.1", "CC6.3"],
+    "control_statement": "Access permissions follow least privilege; full administrative policies are not attached broadly."
+  },
+  "UC-005": {
+    "name": "CloudTrail disabled or not multi-region",
+    "implemented": false,
+    "cis": ["3.1"],
+    "soc2": ["CC7.2"],
+    "control_statement": "System activity is logged across all regions to support monitoring and incident investigation."
+  },
+  "UC-006": {
+    "name": "Access keys older than 90 days",
+    "implemented": false,
+    "cis": ["1.14"],
+    "soc2": ["CC6.1"],
+    "control_statement": "Credentials are rotated on a defined schedule."
+  },
+  "UC-007": {
+    "name": "EBS volumes unencrypted",
+    "implemented": false,
+    "cis": ["2.2.1"],
+    "soc2": ["CC6.7"],
+    "control_statement": "Data at rest is encrypted."
+  },
+  "UC-008": {
+    "name": "RDS snapshot public",
+    "implemented": false,
+    "cis": ["2.3.1"],
+    "soc2": ["CC6.1", "CC6.6"],
+    "control_statement": "Database snapshots are not shared publicly."
+  },
+  "UC-009": {
+    "name": "EC2 IMDSv1 enabled",
+    "implemented": false,
+    "cis": ["5.6"],
+    "soc2": ["CC6.6"],
+    "control_statement": "Instance metadata access requires session-based tokens (IMDSv2)."
+  },
+  "UC-010": {
+    "name": "Lambda over-privileged execution role",
+    "implemented": false,
+    "cis": [],
+    "soc2": ["CC6.3"],
+    "control_statement": "Workload execution roles follow least privilege."
+  }
+}

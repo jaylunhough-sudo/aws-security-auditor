@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
-"""Check security groups for inbound rules open to the internet.
+"""Check #2: security groups with sensitive ports open to the internet.
 
-Three-output standard: detection, plain-English risk, and an exact fix
-command for every finding. CIS AWS Foundations 5.2/5.3 · SOC 2 CC6.6.
+CIS AWS Foundations 5.2/5.3 · SOC 2 CC6.6.
+Ports 80/443 open to the world are usually intentional (websites) and are
+NOT flagged — noise kills posture tools. Emits the three-output standard.
 """
 
 from __future__ import annotations
 
 import json
 import sys
-from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
+
+try:
+    from checks.models import Finding, print_findings
+except ImportError:  # running as a script from the checks/ directory
+    from models import Finding, print_findings
+
+CHECK_ID = "UC-002"
 
 PUBLIC_V4 = "0.0.0.0/0"
 PUBLIC_V6 = "::/0"
@@ -32,25 +39,6 @@ SENSITIVE_PORTS: dict[int, str] = {
 }
 
 
-@dataclass
-class RuleFinding:
-    port_label: str
-    service: str
-    source: str
-    risk: str
-    fix: str
-
-
-@dataclass
-class GroupFinding:
-    group_id: str
-    group_name: str
-    vpc_id: str
-    region: str
-    risky: bool
-    rules: list[RuleFinding] = field(default_factory=list)
-
-
 def _public_sources(permission: dict[str, Any]) -> list[str]:
     sources = [
         r["CidrIp"] for r in permission.get("IpRanges", []) if r.get("CidrIp") == PUBLIC_V4
@@ -62,7 +50,7 @@ def _public_sources(permission: dict[str, Any]) -> list[str]:
 
 
 def _ports_in_range(permission: dict[str, Any]) -> tuple[str, list[int]]:
-    """Return a human label for the rule's port range and the sensitive ports it covers."""
+    """Return a label for the rule's port range and the sensitive ports it covers."""
     if permission.get("IpProtocol") == "-1":
         return "ALL ports / ALL protocols", list(SENSITIVE_PORTS)
 
@@ -76,18 +64,7 @@ def _ports_in_range(permission: dict[str, Any]) -> tuple[str, list[int]]:
     return label, covered
 
 
-def _revoke_command(group_id: str, permission: dict[str, Any], source: str, region: str) -> str:
-    if permission.get("IpProtocol") == "-1":
-        proto_args = "--protocol all"
-    else:
-        proto_args = (
-            f"--protocol {permission.get('IpProtocol', 'tcp')} "
-            f"--port {permission.get('FromPort')}"
-            if permission.get("FromPort") == permission.get("ToPort")
-            else f"--protocol {permission.get('IpProtocol', 'tcp')} "
-            f"--port {permission.get('FromPort')}-{permission.get('ToPort')}"
-        )
-    cidr_flag = "--cidr" if source == PUBLIC_V4 else "--source-group"  # v6 handled below
+def _fix_cli(group_id: str, permission: dict[str, Any], source: str, region: str) -> str:
     if source == PUBLIC_V6:
         return (
             f"aws ec2 revoke-security-group-ingress --group-id {group_id} "
@@ -95,60 +72,106 @@ def _revoke_command(group_id: str, permission: dict[str, Any], source: str, regi
             f"FromPort={permission.get('FromPort')},ToPort={permission.get('ToPort')},"
             f"Ipv6Ranges=[{{CidrIpv6=::/0}}]' --region {region}"
         )
+    if permission.get("IpProtocol") == "-1":
+        proto_args = "--protocol all"
+    elif permission.get("FromPort") == permission.get("ToPort"):
+        proto_args = (
+            f"--protocol {permission.get('IpProtocol', 'tcp')} "
+            f"--port {permission.get('FromPort')}"
+        )
+    else:
+        proto_args = (
+            f"--protocol {permission.get('IpProtocol', 'tcp')} "
+            f"--port {permission.get('FromPort')}-{permission.get('ToPort')}"
+        )
     return (
         f"aws ec2 revoke-security-group-ingress --group-id {group_id} "
-        f"{proto_args} {cidr_flag} {source} --region {region}"
+        f"{proto_args} --cidr {source} --region {region}"
     )
 
 
-def check_group(group: dict[str, Any], region: str) -> GroupFinding:
-    finding = GroupFinding(
-        group_id=group["GroupId"],
-        group_name=group.get("GroupName", "unnamed"),
-        vpc_id=group.get("VpcId", "no-vpc"),
-        region=region,
-        risky=False,
+def _fix_terraform(port_label: str) -> str:
+    return (
+        "# Replace the open ingress rule with one restricted to a trusted CIDR\n"
+        'resource "aws_vpc_security_group_ingress_rule" "restricted" {\n'
+        "  security_group_id = <your-sg-id>\n"
+        '  cidr_ipv4         = "YOUR.OFFICE.IP.0/32"  # never 0.0.0.0/0\n'
+        f"  # ports: {port_label}\n"
+        "}\n"
+        "# Better for SSH: delete the rule entirely and use AWS SSM Session Manager"
     )
 
+
+def check_group(group: dict[str, Any], region: str) -> list[Finding]:
+    findings: list[Finding] = []
+    group_id = group["GroupId"]
+    group_name = group.get("GroupName", "unnamed")
+    resource = f"{group_id} '{group_name}'"
+
+    risky_rules: list[tuple[str, str, list[int], dict[str, Any]]] = []
     for permission in group.get("IpPermissions", []):
         sources = _public_sources(permission)
         if not sources:
             continue
-
         port_label, sensitive_hit = _ports_in_range(permission)
-
+        all_protocols = permission.get("IpProtocol") == "-1"
+        if not sensitive_hit and not all_protocols:
+            continue  # public web ports (80/443) are often intentional
         for source in sources:
-            if permission.get("IpProtocol") == "-1":
-                risk = (
-                    "Anyone on the internet can reach EVERY port on anything using this "
-                    "group - this is a fully open door"
-                )
-            elif sensitive_hit:
-                services = ", ".join(SENSITIVE_PORTS[p] for p in sensitive_hit)
-                risk = (
-                    f"Anyone on the internet can attempt to connect to {services} "
-                    "on anything using this group - these ports are scanned constantly "
-                    "and brute-forced within hours"
-                )
-            else:
-                # Public web ports (80/443 etc.) are often intentional; report as info-level.
-                continue
+            risky_rules.append((port_label, source, sensitive_hit, permission))
 
-            finding.rules.append(
-                RuleFinding(
-                    port_label=port_label,
-                    service=", ".join(SENSITIVE_PORTS[p] for p in sensitive_hit) or "all services",
-                    source=source,
-                    risk=risk,
-                    fix=_revoke_command(finding.group_id, permission, source, region),
-                )
+    if not risky_rules:
+        findings.append(
+            Finding(
+                check_id=CHECK_ID,
+                check_name="Security group open to internet",
+                resource=resource,
+                region=region,
+                severity="high",
+                status="pass",
+                detection="No sensitive ports exposed to the internet",
+                plain_english_risk="",
+                fix_terraform="",
+                fix_cli="",
+                cis_refs=["5.2", "5.3"],
+                soc2_refs=["CC6.6"],
             )
-            finding.risky = True
+        )
+        return findings
 
-    return finding
+    for port_label, source, sensitive_hit, permission in risky_rules:
+        if permission.get("IpProtocol") == "-1":
+            risk = (
+                "Anyone on the internet can reach EVERY port on anything using this "
+                "group — this is a fully open door."
+            )
+        else:
+            services = ", ".join(SENSITIVE_PORTS[p] for p in sensitive_hit)
+            risk = (
+                f"Anyone on the internet can attempt to connect to {services} on "
+                "anything using this group — these ports are scanned constantly and "
+                "brute-forced within hours."
+            )
+        findings.append(
+            Finding(
+                check_id=CHECK_ID,
+                check_name="Security group open to internet",
+                resource=resource,
+                region=region,
+                severity="high",
+                status="fail",
+                detection=f"Inbound ports {port_label} open to {source}",
+                plain_english_risk=risk,
+                fix_terraform=_fix_terraform(port_label),
+                fix_cli=_fix_cli(group_id, permission, source, region),
+                cis_refs=["5.2", "5.3"],
+                soc2_refs=["CC6.6"],
+            )
+        )
+    return findings
 
 
-def run_check(profile: str | None = None, region: str | None = None) -> list[GroupFinding]:
+def run_check(profile: str | None = None, region: str | None = None) -> list[Finding]:
     session_kwargs: dict[str, Any] = {}
     if profile:
         session_kwargs["profile_name"] = profile
@@ -159,11 +182,11 @@ def run_check(profile: str | None = None, region: str | None = None) -> list[Gro
     ec2 = session.client("ec2")
     active_region = ec2.meta.region_name
 
-    findings: list[GroupFinding] = []
+    findings: list[Finding] = []
     paginator = ec2.get_paginator("describe_security_groups")
     for page in paginator.paginate():
         for group in page.get("SecurityGroups", []):
-            findings.append(check_group(group, active_region))
+            findings.extend(check_group(group, active_region))
     return findings
 
 
@@ -191,31 +214,19 @@ def main() -> int:
         print(f"ERROR: AWS API call failed: {error}", file=sys.stderr)
         return 1
 
-    risky_groups = [finding for finding in findings if finding.risky]
+    failed = [f for f in findings if f.status == "fail"]
 
     if args.json:
-        print(json.dumps([asdict(finding) for finding in findings], indent=2))
+        print(json.dumps([f.to_dict() for f in findings], indent=2))
     else:
-        print(f"Scanned {len(findings)} security group(s)\n")
+        groups = {f.resource for f in findings}
+        print(f"Scanned {len(groups)} security group(s)\n")
         if not findings:
             print("No security groups found in this region.")
-        for finding in findings:
-            status = "OPEN TO INTERNET" if finding.risky else "OK"
-            print(
-                f"[{status}] {finding.group_id} '{finding.group_name}' "
-                f"({finding.vpc_id}, {finding.region})"
-            )
-            for rule in finding.rules:
-                print(f"  - Ports {rule.port_label} open to {rule.source}")
-                print(f"    Risk: {rule.risk}")
-                print(f"    Fix:  {rule.fix}")
-            if not finding.rules:
-                print("  - No sensitive ports exposed to the internet")
-            print()
+        print_findings(findings)
+        print(f"Summary: {len(failed)} open-to-internet rule(s)")
 
-        print(f"Summary: {len(risky_groups)} security group(s) open to the internet")
-
-    return 1 if risky_groups else 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

@@ -2,33 +2,46 @@
 
 **SOC 2 evidence and remediation for AWS startups.** Agentless scanning is the sensor — auditor-ready evidence and plain-English fixes are the product.
 
-Working repo for the Umber Cloud engine (umbercloud.com). Currently: check engine v0. Next: findings-to-controls mapping, evidence export, dashboard.
+Working repo for the Umber Cloud engine (umbercloud.com). Currently: 6 of 10 checks live with the three-output standard, scan runner, SOC 2 mapping, and evidence export. Next: checks 7–10, landing page, dashboard.
 
 ## What this becomes
 
 | Layer | What it does | Status |
 |-------|--------------|--------|
-| Check engine | Agentless AWS scans via read-only IAM (10 checks, CIS-aligned) | Check 1 of 10 done |
-| Findings translation | Plain-English risk statements + Terraform/CLI fix snippets | Planned |
-| Compliance mapping | Each finding mapped to SOC 2 controls (CC6.1, CC6.6, ...) with exportable evidence | Planned — the wedge |
+| Check engine | Agentless AWS scans via read-only IAM (10 checks, CIS-aligned) | 6 of 10 done |
+| Findings translation | Plain-English risk statements + Terraform/CLI fix snippets | Done — built into every check (`checks/models.py`) |
+| Compliance mapping | Each finding mapped to SOC 2 controls (CC6.1, CC6.6, ...) with exportable evidence | Done v0 — `compliance/soc2_map.json` + `export_evidence.py` |
 | Dashboard | Connect account in 15 minutes, see what an auditor will ask about | Planned |
 
 Positioning: startups facing a SOC 2 deadline don't need 300 raw findings (Prowler OSS does that for free). They need to know what's exposed, what the auditor needs, and the exact fix — in language a founder can act on.
 
-## Check 1: S3 public access
+## The three-output standard
 
-Flags buckets where any of these are true:
+Every finding ships with three outputs (`checks/models.py`), because raw detections are free everywhere:
 
-- Bucket-level public access block is missing or not fully enabled
-- Bucket ACL grants access to `AllUsers` or `AuthenticatedUsers`
-- Bucket policy allows `Principal: *` or `Principal.AWS: *`
+1. **Detection** — the technical observation (e.g. `Inbound ports 22 open to 0.0.0.0/0`)
+2. **Plain-English risk** — what a founder needs to hear ("Anyone on the internet can attempt to connect to SSH...")
+3. **Fix** — the exact AWS CLI command and/or Terraform snippet
 
-Maps to: CIS AWS 2.1.x, SOC 2 CC6.1 (logical access) / CC6.6 (boundary protection).
+Passing findings are recorded too — a dated record of a control passing is SOC 2 evidence, not noise.
+
+## Live checks (6 of 10)
+
+| ID | Check | SOC 2 |
+|----|-------|-------|
+| UC-001 | S3 public access | CC6.1, CC6.6 |
+| UC-002 | Security groups open to internet (SSH/RDP/DB) | CC6.6 |
+| UC-003 | Root MFA disabled / root access keys | CC6.1 |
+| UC-004 | IAM policy grants `*:*` full admin | CC6.1, CC6.3 |
+| UC-005 | CloudTrail off or not multi-region | CC7.2 |
+| UC-006 | Access keys older than 90 days | CC6.1 |
+
+Full backlog and conventions: `CHECKS.md`.
 
 ## Requirements
 
-- Python 3.10+
-- AWS credentials with read-only access (recommended: `SecurityAudit` managed policy)
+- Python 3.9+ (3.10+ recommended)
+- AWS credentials with read-only access (recommended: `SecurityAudit` managed policy — see `docs/aws-onboarding.md`)
 
 ## Setup
 
@@ -42,35 +55,26 @@ aws configure
 ## Run
 
 ```bash
-python checks/s3_public.py
+# Everything: scan, save timestamped JSON to scans/, print summary
+python checks/run_all.py --profile my-profile
+
+# Turn the latest scan into auditor-ready evidence (CSV + Markdown in evidence/)
+python export_evidence.py
+
+# Single check, machine-readable
+python checks/sg_open.py --profile my-profile --json
 ```
 
-Optional flags:
+Exit code `0` = clean. `1` = at least one failing finding. `2` = credentials problem.
+
+## Tests (no AWS account needed)
 
 ```bash
-python checks/s3_public.py --profile my-profile
-python checks/s3_public.py --json
+pip install -r requirements-dev.txt
+pytest
 ```
 
-## Example output
-
-```
-Scanned 3 bucket(s)
-
-[OK] s3://my-private-backups (us-east-1)
-  - No public access indicators found
-
-[PUBLIC RISK] s3://marketing-assets (us-east-1)
-  - BlockPublicPolicy is disabled
-  - ACL grants READ to AllUsers (public internet)
-
-[OK] s3://logs-internal (us-west-2)
-  - No public access indicators found
-
-Summary: 1 bucket(s) with public access risk
-```
-
-Exit code `0` = no public risk found. Exit code `1` = at least one bucket flagged.
+Nine moto-mocked tests cover fail and pass paths for every check.
 
 ## Roadmap
 

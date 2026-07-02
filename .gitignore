@@ -6,3 +6,5 @@ venv/
 .aws/
 *.pem
 .DS_Store
+scans/
+evidence/
