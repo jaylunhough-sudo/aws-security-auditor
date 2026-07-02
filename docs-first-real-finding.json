@@ -1,0 +1,13 @@
+[
+  {
+    "bucket": "umber-test-exposed-2026",
+    "region": "us-east-2",
+    "public": true,
+    "issues": [
+      "BlockPublicAcls is disabled",
+      "IgnorePublicAcls is disabled",
+      "BlockPublicPolicy is disabled",
+      "RestrictPublicBuckets is disabled"
+    ]
+  }
+]
