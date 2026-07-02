@@ -21,6 +21,39 @@ Therefore the **three-output standard** is non-negotiable. Every check emits, pe
 
 And every finding — **including passing ones** — maps to SOC 2 Trust Services Criteria, because a dated record of a control *passing* is auditor evidence ("control operating effectively"). Failing findings are alerts; passing findings are the product.
 
+## 1b. Why a customer pays (the value logic — never build against this)
+
+The stack has four layers; value concentrates at the top:
+
+1. **Sensor** (10 checks) — worth $0 alone; Prowler OSS does detection free with 300+ checks. Required foundation, not product.
+2. **Translation** (three-output standard) — the customer buys *not having to know* what a finding means or how to fix it. The founder fixed his own CloudTrail and EBS findings in minutes with zero AWS security knowledge; that experience is the product demo.
+3. **Evidence** (SOC 2 mapping + dated scan history + export) — the wedge. Buyer context: an enterprise deal worth 6–7 figures demands SOC 2; the audit costs $10–30k; Vanta-class platforms cost $10–25k/yr; consultants bill $200+/hr. $99/mo to make the AWS portion of the audit self-answering sells against those reference prices (PathShield proves it at $99–799/mo).
+4. **Visibility** (dashboard trend + landing page) — the "controls effective over time" picture is the Type 2 pitch made visual.
+
+The full customer loop — scan, understand, fix, verify, export evidence — already works end to end and was executed on the founder's own account (2 real findings found, fixed, verified green, 12/12 EFFECTIVE).
+
+**Sequencing principle: nothing in the mid/long-term list gets built before a stranger pays for concierge mode.** Cross-account scanning + existing evidence export = chargeable. The hosted platform only removes the founder from the loop; it does not create the value.
+
+## 1c. Roadmap in strict order (near → long)
+
+Near term (enables selling manually):
+1. Landing page live + domain email w/ SPF, DKIM, DMARC (founder tasks, in motion)
+2. **Cross-account role assumption** in the engine (assume customer's `UmberCloudAudit` role with external ID) — unlocks concierge mode, the first revenue
+3. **Multi-region fan-out** — loop regional checks across all enabled regions (real customers are multi-region; per-region settings like EBS default encryption make this mandatory)
+4. **PDF evidence export** — auditors treat PDF as official; CSV/MD reads as internal tooling
+
+Mid term (self-serve, only after first paying customer):
+5. Hosted dashboard with auth + per-customer data separation (biggest lift; the product must itself be secure)
+6. Stripe $99 subscription
+7. Guided onboarding (generate external ID, pre-filled trust policy, one-click role verify — the "15 minutes" promise)
+8. Alerting (email/Slack on new failing finding)
+
+Long term (growth machinery, gated on revenue):
+9. Vanta/Drata push integration
+10. AWS Marketplace listing
+11. MSP white-label tier (Huntress channel model)
+12. More frameworks (ISO 27001, HIPAA — same findings, new evidence language) + AI-agent security pack (see §4b)
+
 ## 2. Current state (verified by live scan + tests, this session)
 
 | Asset | State |
@@ -71,7 +104,26 @@ And every finding — **including passing ones** — maps to SOC 2 Trust Service
 - `cron` or launchd doc for nightly `run_all.py`; extend `export_evidence.py` with `--range` to emit "control effective over period" tables from multiple scans. This is the Type 2 differentiator and it is cheap — scans/ already accumulates.
 
 ### Item E — Deferred (do not build without Jaylun's explicit go)
-Stripe $99 tier (needs his account), Vanta/Drata push, AWS Marketplace listing, MSP white-label tier, AI-agent security pack, multi-account fan-out. These are business-gated, not code-gated.
+Stripe $99 tier (needs his account), Vanta/Drata push, AWS Marketplace listing, MSP white-label tier, multi-account fan-out. These are business-gated, not code-gated.
+
+### §4b — AI-agent security pack (the innovation spear; founder considers this high-priority)
+
+Thesis: companies are deploying AI agents with AWS credentials at speed, and those agents are a new class of over-privileged, under-audited identity. Umber Cloud's existing machinery (IAM analysis, three-output findings, evidence language) extends naturally. This is differentiated from the prompt-injection/LLM-firewall crowd (Lakera, Prompt Security, Zenity) — we audit the *cloud blast radius* of agents, not their prompts.
+
+Candidate checks, same Finding model, IDs UC-020+:
+- **UC-020** Bedrock / agent execution roles with `*:*` or wildcard service access (reuse `iam_admin` statement parser)
+- **UC-021** Long-lived IAM user keys used by agent frameworks (vs short-lived role credentials) — detectable via key age + naming/tag heuristics
+- **UC-022** API keys / secrets in Lambda environment variables (plaintext, unencrypted with customer KMS)
+- **UC-023** Agents with write access to their own IAM policies (self-escalation loop)
+- **UC-024** Bedrock model invocation logging disabled (the CloudTrail of AI usage — evidence for emerging AI governance asks)
+- **UC-025** SageMaker/Bedrock endpoints publicly accessible
+
+Positioning: "SOC 2 evidence for companies whose product is AI agents" — the same wedge, sharper buyer. Their enterprise customers ask *extra* security questions precisely because they're AI companies; they need the evidence story more, not less.
+
+Honest constraints (do not oversell to the founder):
+- Market timing is early: real, growing, but stats circulating are vendor-marketing quality; no proven WTP for agent-specific *posture* checks yet (unlike SOC 2, where WTP is proven)
+- The paying wedge remains SOC 2 evidence; the AI pack is differentiation and content/marketing fuel first, revenue second
+- Sequencing: build after concierge-mode revenue exists, or earlier only as cheap checks (UC-020/021/022 are 1–2 sessions of work reusing existing parsers) + landing-page positioning ("we also audit your AI agents' blast radius" is a headline no CSPM incumbent leads with)
 
 ## 5. Verification protocol (every session, before claiming done)
 
