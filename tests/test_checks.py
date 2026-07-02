@@ -16,7 +16,18 @@ from moto import mock_aws
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from checks import cloudtrail, iam_admin, root_mfa, s3_public, sg_open, stale_keys  # noqa: E402
+from checks import (  # noqa: E402
+    cloudtrail,
+    ebs_encryption,
+    iam_admin,
+    imdsv1,
+    lambda_iam,
+    rds_public,
+    root_mfa,
+    s3_public,
+    sg_open,
+    stale_keys,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -201,5 +212,159 @@ def test_stale_keys_passes_with_fresh_key():
     iam.create_access_key(UserName="dev")  # created "now" — not stale
 
     findings = stale_keys.run_check(region="us-east-1")
+
+    assert all(f.status == "pass" for f in findings)
+
+
+# --- UC-007 EBS encryption -------------------------------------------------------
+
+
+@mock_aws
+def test_ebs_flags_unencrypted_volume_and_default_off():
+    ec2 = boto3.client("ec2", region_name="us-east-1")
+    ec2.create_volume(AvailabilityZone="us-east-1a", Size=8, Encrypted=False)
+
+    findings = ebs_encryption.run_check(region="us-east-1")
+    fails = [f for f in findings if f.status == "fail"]
+
+    # default-encryption off + the unencrypted volume
+    assert len(fails) == 2
+    volume_fail = next(f for f in fails if f.check_name == "Unencrypted EBS volume")
+    assert "create-snapshot" in volume_fail.fix_cli
+    assert "CC6.7" in volume_fail.soc2_refs
+
+
+@mock_aws
+def test_ebs_passes_encrypted_volume():
+    ec2 = boto3.client("ec2", region_name="us-east-1")
+    ec2.enable_ebs_encryption_by_default()
+    ec2.create_volume(AvailabilityZone="us-east-1a", Size=8, Encrypted=True)
+
+    findings = ebs_encryption.run_check(region="us-east-1")
+
+    assert all(f.status == "pass" for f in findings)
+
+
+# --- UC-008 RDS public -----------------------------------------------------------
+
+
+@mock_aws
+def test_rds_flags_public_instance():
+    rds = boto3.client("rds", region_name="us-east-1")
+    rds.create_db_instance(
+        DBInstanceIdentifier="public-db",
+        DBInstanceClass="db.t3.micro",
+        Engine="postgres",
+        MasterUsername="admin",
+        MasterUserPassword="testing-only",
+        AllocatedStorage=20,
+        PubliclyAccessible=True,
+    )
+
+    findings = rds_public.run_check(region="us-east-1")
+    fails = [f for f in findings if f.status == "fail"]
+
+    assert len(fails) == 1
+    assert "public-db" in fails[0].resource
+    assert fails[0].severity == "critical"
+    assert "no-publicly-accessible" in fails[0].fix_cli
+
+
+@mock_aws
+def test_rds_passes_private_instance():
+    rds = boto3.client("rds", region_name="us-east-1")
+    rds.create_db_instance(
+        DBInstanceIdentifier="private-db",
+        DBInstanceClass="db.t3.micro",
+        Engine="postgres",
+        MasterUsername="admin",
+        MasterUserPassword="testing-only",
+        AllocatedStorage=20,
+        PubliclyAccessible=False,
+    )
+
+    findings = rds_public.run_check(region="us-east-1")
+
+    assert all(f.status == "pass" for f in findings)
+
+
+# --- UC-009 IMDSv1 ---------------------------------------------------------------
+
+
+@mock_aws
+def test_imdsv1_flags_optional_tokens():
+    ec2 = boto3.client("ec2", region_name="us-east-1")
+    ec2.run_instances(
+        ImageId="ami-12345678", MinCount=1, MaxCount=1,
+        MetadataOptions={"HttpTokens": "optional"},
+    )
+
+    findings = imdsv1.run_check(region="us-east-1")
+    fails = [f for f in findings if f.status == "fail"]
+
+    assert len(fails) == 1
+    assert "modify-instance-metadata-options" in fails[0].fix_cli
+
+
+@mock_aws
+def test_imdsv1_passes_required_tokens():
+    ec2 = boto3.client("ec2", region_name="us-east-1")
+    ec2.run_instances(
+        ImageId="ami-12345678", MinCount=1, MaxCount=1,
+        MetadataOptions={"HttpTokens": "required"},
+    )
+
+    findings = imdsv1.run_check(region="us-east-1")
+
+    assert all(f.status == "pass" for f in findings)
+
+
+# --- UC-010 Lambda over-privileged roles ------------------------------------------
+
+
+def _make_lambda_with_role(admin: bool = False):
+    iam = boto3.client("iam", region_name="us-east-1")
+    role = iam.create_role(
+        RoleName="fn-role",
+        AssumeRolePolicyDocument='{"Version": "2012-10-17", "Statement": [{"Effect": '
+        '"Allow", "Principal": {"Service": "lambda.amazonaws.com"}, '
+        '"Action": "sts:AssumeRole"}]}',
+    )["Role"]
+    if admin:
+        # moto doesn't preload AWS-managed policies, so exercise the same
+        # *:* detection through a customer-managed policy
+        arn = iam.create_policy(
+            PolicyName="do-everything",
+            PolicyDocument='{"Version": "2012-10-17", "Statement": [{"Effect": '
+            '"Allow", "Action": "*", "Resource": "*"}]}',
+        )["Policy"]["Arn"]
+        iam.attach_role_policy(RoleName="fn-role", PolicyArn=arn)
+    lam = boto3.client("lambda", region_name="us-east-1")
+    lam.create_function(
+        FunctionName="fn",
+        Runtime="python3.12",
+        Role=role["Arn"],
+        Handler="index.handler",
+        Code={"ZipFile": b"fake code"},
+    )
+
+
+@mock_aws
+def test_lambda_flags_admin_role():
+    _make_lambda_with_role(admin=True)
+
+    findings = lambda_iam.run_check(region="us-east-1")
+    fails = [f for f in findings if f.status == "fail"]
+
+    assert len(fails) == 1
+    assert "do-everything" in fails[0].detection
+    assert "detach-role-policy" in fails[0].fix_cli
+
+
+@mock_aws
+def test_lambda_passes_plain_role():
+    _make_lambda_with_role()
+
+    findings = lambda_iam.run_check(region="us-east-1")
 
     assert all(f.status == "pass" for f in findings)

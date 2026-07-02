@@ -16,11 +16,26 @@ from pathlib import Path
 from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 
 try:
-    from checks import cloudtrail, iam_admin, root_mfa, s3_public, sg_open, stale_keys
+    from checks import (
+        cloudtrail,
+        ebs_encryption,
+        iam_admin,
+        imdsv1,
+        lambda_iam,
+        rds_public,
+        root_mfa,
+        s3_public,
+        sg_open,
+        stale_keys,
+    )
     from checks.models import Finding, summarize
 except ImportError:  # running as a script from the checks/ directory
     import cloudtrail  # type: ignore[no-redef]
+    import ebs_encryption  # type: ignore[no-redef]
     import iam_admin  # type: ignore[no-redef]
+    import imdsv1  # type: ignore[no-redef]
+    import lambda_iam  # type: ignore[no-redef]
+    import rds_public  # type: ignore[no-redef]
     import root_mfa  # type: ignore[no-redef]
     import s3_public  # type: ignore[no-redef]
     import sg_open  # type: ignore[no-redef]
@@ -34,6 +49,10 @@ CHECK_MODULES = [
     ("UC-004", "IAM policy allows full admin", iam_admin),
     ("UC-005", "CloudTrail multi-region logging", cloudtrail),
     ("UC-006", "Stale access keys", stale_keys),
+    ("UC-007", "EBS encryption", ebs_encryption),
+    ("UC-008", "RDS public exposure", rds_public),
+    ("UC-009", "EC2 IMDSv1 allowed", imdsv1),
+    ("UC-010", "Lambda over-privileged roles", lambda_iam),
 ]
 
 SCANS_DIR = Path(__file__).resolve().parent.parent / "scans"

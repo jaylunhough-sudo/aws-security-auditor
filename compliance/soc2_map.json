@@ -30,49 +30,49 @@
   },
   "UC-004": {
     "name": "IAM policy allows *:* admin access",
-    "implemented": false,
+    "implemented": true,
     "cis": ["1.16"],
     "soc2": ["CC6.1", "CC6.3"],
     "control_statement": "Access permissions follow least privilege; full administrative policies are not attached broadly."
   },
   "UC-005": {
     "name": "CloudTrail disabled or not multi-region",
-    "implemented": false,
+    "implemented": true,
     "cis": ["3.1"],
     "soc2": ["CC7.2"],
     "control_statement": "System activity is logged across all regions to support monitoring and incident investigation."
   },
   "UC-006": {
     "name": "Access keys older than 90 days",
-    "implemented": false,
+    "implemented": true,
     "cis": ["1.14"],
     "soc2": ["CC6.1"],
     "control_statement": "Credentials are rotated on a defined schedule."
   },
   "UC-007": {
     "name": "EBS volumes unencrypted",
-    "implemented": false,
+    "implemented": true,
     "cis": ["2.2.1"],
     "soc2": ["CC6.7"],
     "control_statement": "Data at rest is encrypted."
   },
   "UC-008": {
     "name": "RDS snapshot public",
-    "implemented": false,
+    "implemented": true,
     "cis": ["2.3.1"],
     "soc2": ["CC6.1", "CC6.6"],
     "control_statement": "Database snapshots are not shared publicly."
   },
   "UC-009": {
     "name": "EC2 IMDSv1 enabled",
-    "implemented": false,
+    "implemented": true,
     "cis": ["5.6"],
     "soc2": ["CC6.6"],
     "control_statement": "Instance metadata access requires session-based tokens (IMDSv2)."
   },
   "UC-010": {
     "name": "Lambda over-privileged execution role",
-    "implemented": false,
+    "implemented": true,
     "cis": [],
     "soc2": ["CC6.3"],
     "control_statement": "Workload execution roles follow least privilege."

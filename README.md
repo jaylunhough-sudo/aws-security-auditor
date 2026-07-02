@@ -2,13 +2,13 @@
 
 **SOC 2 evidence and remediation for AWS startups.** Agentless scanning is the sensor — auditor-ready evidence and plain-English fixes are the product.
 
-Working repo for the Umber Cloud engine (umbercloud.com). Currently: 6 of 10 checks live with the three-output standard, scan runner, SOC 2 mapping, and evidence export. Next: checks 7–10, landing page, dashboard.
+Working repo for the Umber Cloud engine (umbercloud.com). Currently: all 10 checks live with the three-output standard, scan runner, SOC 2 mapping, evidence export, and the landing page in `site/`. Next: deploy landing page, dashboard v0.
 
 ## What this becomes
 
 | Layer | What it does | Status |
 |-------|--------------|--------|
-| Check engine | Agentless AWS scans via read-only IAM (10 checks, CIS-aligned) | 6 of 10 done |
+| Check engine | Agentless AWS scans via read-only IAM (10 checks, CIS-aligned) | 10 of 10 done |
 | Findings translation | Plain-English risk statements + Terraform/CLI fix snippets | Done — built into every check (`checks/models.py`) |
 | Compliance mapping | Each finding mapped to SOC 2 controls (CC6.1, CC6.6, ...) with exportable evidence | Done v0 — `compliance/soc2_map.json` + `export_evidence.py` |
 | Dashboard | Connect account in 15 minutes, see what an auditor will ask about | Planned |
@@ -25,7 +25,7 @@ Every finding ships with three outputs (`checks/models.py`), because raw detecti
 
 Passing findings are recorded too — a dated record of a control passing is SOC 2 evidence, not noise.
 
-## Live checks (6 of 10)
+## Live checks (10 of 10)
 
 | ID | Check | SOC 2 |
 |----|-------|-------|
@@ -35,6 +35,10 @@ Passing findings are recorded too — a dated record of a control passing is SOC
 | UC-004 | IAM policy grants `*:*` full admin | CC6.1, CC6.3 |
 | UC-005 | CloudTrail off or not multi-region | CC7.2 |
 | UC-006 | Access keys older than 90 days | CC6.1 |
+| UC-007 | EBS volumes unencrypted / default encryption off | CC6.7 |
+| UC-008 | RDS instance public / snapshot shared publicly | CC6.1, CC6.6 |
+| UC-009 | EC2 instances allowing IMDSv1 | CC6.6 |
+| UC-010 | Lambda over-privileged execution roles | CC6.3 |
 
 Full backlog and conventions: `CHECKS.md`.
 

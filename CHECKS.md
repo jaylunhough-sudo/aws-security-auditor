@@ -18,10 +18,10 @@ All checks emit the shared `Finding` model in `checks/models.py` (check_id, reso
 | 4 | UC-004 | IAM policy allows `*:*` admin access | done | `checks/iam_admin.py` | 1.16 | CC6.1, CC6.3 |
 | 5 | UC-005 | CloudTrail disabled or not multi-region | done | `checks/cloudtrail.py` | 3.1 | CC7.2 (monitoring) |
 | 6 | UC-006 | Access keys older than 90 days | done | `checks/stale_keys.py` | 1.14 | CC6.1 |
-| 7 | UC-007 | EBS volumes unencrypted | planned | `checks/ebs_encryption.py` | 2.2.1 | CC6.7 (data at rest) |
-| 8 | UC-008 | RDS snapshot public | planned | `checks/rds_public.py` | 2.3.x | CC6.1, CC6.6 |
-| 9 | UC-009 | EC2 IMDSv1 enabled | planned | `checks/imdsv1.py` | 5.6 | CC6.6 |
-| 10 | UC-010 | Lambda over-privileged execution role | planned | `checks/lambda_iam.py` | — | CC6.3 (least privilege) |
+| 7 | UC-007 | EBS volumes unencrypted (+ default encryption off) | done | `checks/ebs_encryption.py` | 2.2.1 | CC6.7 (data at rest) |
+| 8 | UC-008 | RDS instance public / snapshot shared publicly | done | `checks/rds_public.py` | 2.3.x | CC6.1, CC6.6 |
+| 9 | UC-009 | EC2 IMDSv1 enabled | done | `checks/imdsv1.py` | 5.6 | CC6.6 |
+| 10 | UC-010 | Lambda over-privileged execution role | done | `checks/lambda_iam.py` | — | CC6.3 (least privilege) |
 
 Run everything: `python checks/run_all.py --profile <profile>` (writes `scans/<timestamp>.json`).
 Export evidence: `python export_evidence.py` (reads latest scan, writes CSV + Markdown to `evidence/`).
