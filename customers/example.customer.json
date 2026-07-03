@@ -1,0 +1,11 @@
+{
+  "_comment": "Copy to customers/<name>.customer.json (gitignored). Never commit real external IDs.",
+  "customer_id": "acme",
+  "company": "Acme Inc",
+  "contact_email": "founder@acme.com",
+  "role_arn": "arn:aws:iam::CUSTOMER_ACCOUNT_ID:role/UmberCloudAudit",
+  "external_id": "GENERATE_WITH_generate_onboarding.py",
+  "operator_profile": null,
+  "region": "us-east-1",
+  "all_regions": true
+}

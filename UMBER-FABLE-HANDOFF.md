@@ -38,9 +38,9 @@ The full customer loop — scan, understand, fix, verify, export evidence — al
 
 Near term (enables selling manually):
 1. Landing page live + domain email w/ SPF, DKIM, DMARC (founder tasks, in motion)
-2. **Cross-account role assumption** in the engine (assume customer's `UmberCloudAudit` role with external ID) — unlocks concierge mode, the first revenue
-3. **Multi-region fan-out** — loop regional checks across all enabled regions (real customers are multi-region; per-region settings like EBS default encryption make this mandatory)
-4. **PDF evidence export** — auditors treat PDF as official; CSV/MD reads as internal tooling
+2. ~~Cross-account role assumption~~ **DONE** — `checks/cross_account.py` (env-injection context manager), `generate_onboarding.py` (external ID + trust policy per customer), `scan_customer.py` (verify + scan + evidence in one command, customer records in gitignored `customers/*.customer.json`)
+3. ~~Multi-region fan-out~~ **DONE** — `--all-regions` on run_all; concierge scans default to all regions
+4. ~~PDF evidence export~~ **DONE** — `export_evidence.py` emits CSV + Markdown + PDF; landing page CTA is now a **free scan offer** (score + PDF report), which is the concierge-mode lead magnet
 
 Mid term (self-serve, only after first paying customer):
 5. Hosted dashboard with auth + per-customer data separation (biggest lift; the product must itself be secure)

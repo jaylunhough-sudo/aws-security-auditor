@@ -23,8 +23,10 @@ from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 
 try:
     from checks.models import Finding, print_findings
+    from checks.aws_session import build_session
 except ImportError:
     from models import Finding, print_findings
+    from aws_session import build_session
 
 CHECK_ID = "UC-022"
 
@@ -50,14 +52,13 @@ def _suspicious_vars(variables: dict[str, str]) -> list[str]:
     return hits
 
 
-def run_check(profile: str | None = None, region: str | None = None) -> list[Finding]:
-    session_kwargs: dict[str, Any] = {}
-    if profile:
-        session_kwargs["profile_name"] = profile
-    if region:
-        session_kwargs["region_name"] = region
-
-    session = boto3.Session(**session_kwargs)
+def run_check(
+    profile: str | None = None,
+    region: str | None = None,
+    session: boto3.Session | None = None,
+) -> list[Finding]:
+    if session is None:
+        session = build_session(profile=profile, region=region)
     lambda_client = session.client("lambda")
     active_region = lambda_client.meta.region_name
 

@@ -5,6 +5,7 @@ Run: pytest
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -483,3 +484,77 @@ def test_lambda_secrets_passes_clean_env():
     findings = lambda_secrets.run_check(region="us-east-1")
 
     assert all(f.status == "pass" for f in findings)
+
+
+# --- Cross-account (concierge scan path) ------------------------------------------
+
+
+@mock_aws
+def test_cross_account_temporary_credentials_flow():
+    from checks.cross_account import customer_account_id, temporary_credentials
+
+    iam = boto3.client("iam", region_name="us-east-1")
+    role = iam.create_role(
+        RoleName="UmberCloudAudit",
+        AssumeRolePolicyDocument='{"Version": "2012-10-17", "Statement": [{"Effect": '
+        '"Allow", "Principal": {"AWS": "*"}, "Action": "sts:AssumeRole"}]}',
+    )["Role"]
+
+    with temporary_credentials(role["Arn"], external_id="test-ext-id") as response:
+        assert "Credentials" in response
+        # checks must work inside the block using the assumed credentials
+        s3 = boto3.client("s3", region_name="us-east-1")
+        s3.create_bucket(Bucket="customer-bucket")
+        findings = s3_public.run_check(region="us-east-1")
+        assert any("customer-bucket" in f.resource for f in findings)
+
+    assert customer_account_id(role["Arn"]) == role["Arn"].split(":")[4]
+
+
+def test_trust_policy_contains_external_id():
+    import generate_onboarding
+
+    policy = generate_onboarding.trust_policy("111122223333", "my-external-id")
+    statement = policy["Statement"][0]
+
+    assert statement["Principal"]["AWS"] == "arn:aws:iam::111122223333:root"
+    assert statement["Condition"]["StringEquals"]["sts:ExternalId"] == "my-external-id"
+
+
+# --- Evidence export (PDF) ----------------------------------------------------------
+
+
+def test_export_produces_pdf(tmp_path, monkeypatch):
+    import export_evidence
+
+    scan = {
+        "scanned_at_utc": "2026-07-02T00:00:00+00:00",
+        "score": 92,
+        "summary": {"total": 1, "pass": 1, "fail": 0},
+        "findings": [
+            {
+                "check_id": "UC-001",
+                "check_name": "S3 public access",
+                "resource": "s3://demo",
+                "region": "us-east-1",
+                "severity": "critical",
+                "status": "pass",
+                "detection": "No public access indicators found",
+                "plain_english_risk": "",
+                "fix_terraform": "",
+                "fix_cli": "",
+                "cis_refs": ["2.1.1"],
+                "soc2_refs": ["CC6.1"],
+            }
+        ],
+    }
+    scan_path = tmp_path / "2026-07-02T000000.json"
+    scan_path.write_text(json.dumps(scan))
+    monkeypatch.setattr(export_evidence, "EVIDENCE_DIR", tmp_path / "evidence")
+
+    csv_path, md_path, pdf_path = export_evidence.export(scan_path)
+
+    assert csv_path.exists()
+    assert md_path.exists()
+    assert pdf_path.exists()
+    assert pdf_path.read_bytes()[:4] == b"%PDF"

@@ -16,8 +16,10 @@ from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 
 try:
     from checks.models import Finding, print_findings
+    from checks.aws_session import build_session
 except ImportError:  # running as a script from the checks/ directory
     from models import Finding, print_findings
+    from aws_session import build_session
 
 CHECK_ID = "UC-001"
 
@@ -154,14 +156,13 @@ def check_bucket(session: boto3.Session, s3_client: Any, bucket_name: str) -> Fi
     )
 
 
-def run_check(profile: str | None = None, region: str | None = None) -> list[Finding]:
-    session_kwargs: dict[str, Any] = {}
-    if profile:
-        session_kwargs["profile_name"] = profile
-    if region:
-        session_kwargs["region_name"] = region
-
-    session = boto3.Session(**session_kwargs)
+def run_check(
+    profile: str | None = None,
+    region: str | None = None,
+    session: boto3.Session | None = None,
+) -> list[Finding]:
+    if session is None:
+        session = build_session(profile=profile, region=region)
     s3_client = session.client("s3")
 
     findings: list[Finding] = []

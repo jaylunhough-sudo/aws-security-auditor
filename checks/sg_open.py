@@ -17,8 +17,10 @@ from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 
 try:
     from checks.models import Finding, print_findings
+    from checks.aws_session import build_session
 except ImportError:  # running as a script from the checks/ directory
     from models import Finding, print_findings
+    from aws_session import build_session
 
 CHECK_ID = "UC-002"
 
@@ -171,14 +173,13 @@ def check_group(group: dict[str, Any], region: str) -> list[Finding]:
     return findings
 
 
-def run_check(profile: str | None = None, region: str | None = None) -> list[Finding]:
-    session_kwargs: dict[str, Any] = {}
-    if profile:
-        session_kwargs["profile_name"] = profile
-    if region:
-        session_kwargs["region_name"] = region
-
-    session = boto3.Session(**session_kwargs)
+def run_check(
+    profile: str | None = None,
+    region: str | None = None,
+    session: boto3.Session | None = None,
+) -> list[Finding]:
+    if session is None:
+        session = build_session(profile=profile, region=region)
     ec2 = session.client("ec2")
     active_region = ec2.meta.region_name
 

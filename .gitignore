@@ -9,3 +9,6 @@ venv/
 scans/
 evidence/
 automation/logs/
+customers/*.customer.json
+customers/*.trust-policy.json
+!customers/example.customer.json

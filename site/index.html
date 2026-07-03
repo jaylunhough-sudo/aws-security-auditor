@@ -340,7 +340,7 @@ footer a:hover { color: var(--text); }
       <a href="#how">How it works</a>
       <a href="#checks">Checks</a>
       <a href="#pricing">Pricing</a>
-      <a href="#early-access" class="btn btn-primary">Get early access</a>
+      <a href="#early-access" class="btn btn-primary">Get a free scan</a>
     </div>
   </div>
 </nav>
@@ -357,10 +357,10 @@ footer a:hover { color: var(--text); }
   <h1>Know what your SOC 2 auditor will ask about your AWS. <span class="accent">And the exact fix.</span></h1>
   <p class="hero-sub">Connect a read-only role in 15 minutes. Umber Cloud scans your AWS, translates every finding into plain English, hands you the exact command that fixes it — and turns your passing controls into dated, auditor-ready evidence.</p>
   <div class="hero-cta">
-    <a href="#early-access" class="btn btn-primary">Get early access</a>
+    <a href="#early-access" class="btn btn-primary">Get my free scan</a>
     <a href="#example" class="btn btn-ghost">See a real finding</a>
   </div>
-  <p class="hero-note">Read-only access. No agents. Revoke anytime by deleting one IAM role.</p>
+  <p class="hero-note">Free scan, real report, no card. Read-only access — revoke anytime by deleting one IAM role.</p>
 
   <div class="terminal-wrap">
     <div class="dome" style="top:-96px" aria-hidden="true">
@@ -568,7 +568,7 @@ address on the internet</div>
       <li>Scan history for Type 2 "effective over time" evidence</li>
       <li>Founder-direct support — you talk to the person who wrote the checks</li>
     </ul>
-    <a href="#early-access" class="btn btn-primary" style="width:100%">Join the early access list</a>
+    <a href="#early-access" class="btn btn-primary" style="width:100%">Start with a free scan</a>
     <p class="price-note">Early-access pricing locked in for life. Cancel anytime.</p>
   </div>
 </section>
@@ -579,14 +579,14 @@ address on the internet</div>
     <div class="cube" style="--s:54px;width:54px;height:54px;top:40%;right:7%;animation-delay:-2s,-14s"><div class="face f1"></div><div class="face f2"></div><div class="face f3"></div><div class="face f4"></div><div class="face f5"></div><div class="face f6"></div></div>
   </div>
   <div class="reveal">
-    <div class="eyebrow">Early access</div>
-    <h2>Be in the first ten accounts.</h2>
-    <p class="section-sub">Leave your email and you'll get the onboarding guide, the read-only trust policy, and a hand-held first scan — direct from the founder.</p>
+    <div class="eyebrow">Free scan</div>
+    <h2>Get your AWS audit-readiness score. Free.</h2>
+    <p class="section-sub">Leave your email and you'll get the 15-minute read-only setup guide. We run the full 13-check scan and send back your score (0–100) and a PDF evidence report — the same deliverable paying customers get, once, on us. No card, no commitment, and you keep the report.</p>
     <div class="capture">
       <!-- TODO(jaylun): replace FORM_ID with your real Formspree form ID (formspree.io, free tier) -->
       <form id="ea-form" action="https://formspree.io/f/FORM_ID" method="POST">
         <input type="email" name="email" required placeholder="you@yourstartup.com" aria-label="Email address">
-        <button type="submit" class="btn btn-primary">Request access</button>
+        <button type="submit" class="btn btn-primary">Request my free scan</button>
       </form>
       <div class="capture-msg" id="ea-msg"></div>
     </div>
@@ -615,7 +615,7 @@ form.addEventListener("submit", async (evt) => {
   evt.preventDefault();
   const email = form.email.value.trim();
   if (form.action.includes("FORM_ID")) {
-    window.location.href = "mailto:hello@umbercloud.com?subject=Early%20access%20request&body=" + encodeURIComponent(email);
+    window.location.href = "mailto:hello@umbercloud.com?subject=Free%20scan%20request&body=" + encodeURIComponent(email);
     msg.textContent = "Opening your email app — or write hello@umbercloud.com directly.";
     return;
   }

@@ -37,6 +37,7 @@ try:
         sg_open,
         stale_keys,
     )
+    from checks.cross_account import temporary_credentials
     from checks.models import Finding, summarize
 except ImportError:  # running as a script from the checks/ directory
     import agent_keys  # type: ignore[no-redef]
@@ -53,6 +54,11 @@ except ImportError:  # running as a script from the checks/ directory
     import sg_open  # type: ignore[no-redef]
     import stale_keys  # type: ignore[no-redef]
     from models import Finding, summarize  # type: ignore[no-redef]
+
+try:
+    from checks.aws_session import build_session
+except ImportError:
+    from aws_session import build_session  # type: ignore[no-redef]
 
 # (check_id, name, module, scope) — "global" runs once, "regional" fans out
 CHECK_MODULES = [
@@ -74,8 +80,7 @@ CHECK_MODULES = [
 SCANS_DIR = Path(__file__).resolve().parent.parent / "scans"
 
 
-def enabled_regions(profile: str | None) -> list[str]:
-    session = boto3.Session(profile_name=profile) if profile else boto3.Session()
+def enabled_regions(session: boto3.Session) -> list[str]:
     ec2 = session.client("ec2", region_name="us-east-1")
     regions = ec2.describe_regions(AllRegions=False).get("Regions", [])
     return sorted(r["RegionName"] for r in regions)
@@ -86,14 +91,19 @@ def run_all(
     region: str | None = None,
     all_regions: bool = False,
 ) -> tuple[list[Finding], list[str]]:
-    """Run every check. Returns (findings, errors). A check error never aborts the scan."""
+    """Run every check. Returns (findings, errors). A check error never aborts the scan.
+
+    For cross-account customer scans, wrap this call in
+    checks.cross_account.temporary_credentials(...) with profile=None —
+    the assumed-role credentials flow through the default boto3 chain.
+    """
     findings: list[Finding] = []
     errors: list[str] = []
 
     regions: list[str] = []
     if all_regions:
         try:
-            regions = enabled_regions(profile)
+            regions = enabled_regions(build_session(profile=profile, region=region))
         except ClientError as error:
             errors.append(f"Could not enumerate regions ({error}); using default region only")
 
@@ -101,7 +111,9 @@ def run_all(
         targets = regions if (scope == "regional" and regions) else [region]
         for target in targets:
             try:
-                findings.extend(module.run_check(profile=profile, region=target))
+                findings.extend(
+                    module.run_check(session=build_session(profile=profile, region=target or region))
+                )
             except ClientError as error:
                 where = f" [{target}]" if target else ""
                 errors.append(f"{check_id} {name}{where}: AWS API error: {error}")
@@ -117,15 +129,28 @@ def posture_score(findings: list[Finding]) -> int:
 
 
 def write_scan(
-    findings: list[Finding], errors: list[str], profile: str | None, region: str | None
+    findings: list[Finding],
+    errors: list[str],
+    profile: str | None,
+    region: str | None,
+    *,
+    customer_id: str | None = None,
+    role_arn: str | None = None,
+    scan_mode: str = "profile",
+    all_regions: bool = False,
 ) -> Path:
     SCANS_DIR.mkdir(exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%S")
-    path = SCANS_DIR / f"{stamp}.json"
+    prefix = f"{customer_id}-" if customer_id else ""
+    path = SCANS_DIR / f"{prefix}{stamp}.json"
     payload = {
         "scanned_at_utc": datetime.now(timezone.utc).isoformat(),
         "profile": profile,
         "region": region,
+        "scan_mode": scan_mode,
+        "all_regions": all_regions,
+        "customer_id": customer_id,
+        "role_arn": role_arn,
         "summary": summarize(findings),
         "score": posture_score(findings),
         "errors": errors,
@@ -146,12 +171,35 @@ def main() -> int:
         help="Fan regional checks out across every enabled region",
     )
     parser.add_argument("--no-save", action="store_true", help="Do not write a scan file")
+    parser.add_argument("--role-arn", help="Customer IAM role ARN to assume (cross-account scan)")
+    parser.add_argument("--external-id", help="External ID for AssumeRole (required with --role-arn)")
+    parser.add_argument(
+        "--operator-profile",
+        help="Your AWS profile with permission to call sts:AssumeRole into the customer role",
+    )
+    parser.add_argument("--customer-id", help="Label for scan filename / metadata (concierge mode)")
     args = parser.parse_args()
 
+    if args.role_arn and not args.external_id:
+        parser.error("--external-id is required when using --role-arn")
+
+    scan_mode = "cross_account" if args.role_arn else "profile"
+    scan_profile = args.profile
+
     try:
-        findings, errors = run_all(
-            profile=args.profile, region=args.region, all_regions=args.all_regions
-        )
+        if args.role_arn:
+            with temporary_credentials(
+                args.role_arn, args.external_id, args.operator_profile
+            ):
+                findings, errors = run_all(
+                    profile=None,
+                    region=args.region,
+                    all_regions=args.all_regions,
+                )
+        else:
+            findings, errors = run_all(
+                profile=args.profile, region=args.region, all_regions=args.all_regions
+            )
     except (NoCredentialsError, ProfileNotFound) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         print(
@@ -181,7 +229,16 @@ def main() -> int:
         print(f"[ERROR] {error}")
 
     if not args.no_save:
-        path = write_scan(findings, errors, args.profile, args.region)
+        path = write_scan(
+            findings,
+            errors,
+            scan_profile,
+            args.region,
+            customer_id=args.customer_id,
+            role_arn=args.role_arn,
+            scan_mode=scan_mode,
+            all_regions=args.all_regions,
+        )
         print(f"\nScan saved: {path}")
 
     print(f"\nSummary: {stats['fail']} failing / {stats['total']} total findings "
